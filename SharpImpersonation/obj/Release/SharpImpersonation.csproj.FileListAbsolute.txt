@@ -1,0 +1,5 @@
+E:\Git\Sharp\SharpImpersonation\SharpImpersonation\bin\Release\SharpImpersonation.exe
+E:\Git\Sharp\SharpImpersonation\SharpImpersonation\bin\Release\SharpImpersonation.pdb
+E:\Git\Sharp\SharpImpersonation\SharpImpersonation\obj\Release\SharpImpersonation.csproj.CoreCompileInputs.cache
+E:\Git\Sharp\SharpImpersonation\SharpImpersonation\obj\Release\SharpImpersonation.exe
+E:\Git\Sharp\SharpImpersonation\SharpImpersonation\obj\Release\SharpImpersonation.pdb
