@@ -67,6 +67,10 @@ namespace SharpImpersonation
                     shellcodegiven = true;
                 }
 
+                if (arguments.Arguments.ContainsKey("binary"))
+                {
+                    binary = arguments.Arguments["binary"];
+                }
 
                 if (arguments.Arguments.ContainsKey("list"))
                 {

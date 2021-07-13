@@ -38,8 +38,8 @@ A blog post for the intruduction can be found here:
 
 ![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/ShellcodeWebDownload.PNG?raw=true)
 
-======================  Impersonate user <user> via ImpersonateLoggedOnuser for the current session  ======================
+<u>Impersonate user <user> via ImpersonateLoggedOnuser for the current session</u>
 
 `SharpImpersonation.exe user:<user> technique:ImpersonateLoggedOnuser`
 
-![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/ImpersonateLoggedOnUser.PNG?raw=true)
+![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/ImpersonateLoggedOnUser.png?raw=true)
