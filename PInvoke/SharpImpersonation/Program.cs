@@ -344,28 +344,13 @@ namespace SharpImpersonation
         // Stolen from https://stackoverflow.com/questions/677874/starting-a-process-with-credentials-from-a-windows-service
         public static void GrantAccessToWindowStationAndDesktop(string username)
         {
-            Console.WriteLine(" [*] Setting Permission for : " + username + "\r\n");
             IntPtr handle;
-            username = "everyone";
             const int WindowStationAllAccess = 0x000f037f;
-            /* P/Invoke
             handle = GetProcessWindowStation();
             GrantAccess(username, handle, WindowStationAllAccess);
             const int DesktopRightsAllAccess = 0x000f01ff;
             handle = GetThreadDesktop(GetCurrentThreadId());
             GrantAccess(username, handle, DesktopRightsAllAccess);
-            */
-            // D/Invoke
-            object[] GetProcessWindowStationArgs = { };
-            handle = (IntPtr)InvokeItDynamically.DynGen.DynamicAPIInvoke("user32.dll", "GetProcessWindowStation", typeof(GetProcessWindowStation), ref GetProcessWindowStationArgs, true, true);
-            GrantAccess(username, handle, WindowStationAllAccess);
-            const int DesktopRightsAllAccess = 0x000f01ff;
-            object[] GetCurrentThreadIdArgs = { };
-            int ThreadID = (int)InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "GetCurrentThreadId", typeof(GetCurrentThreadId), ref GetCurrentThreadIdArgs, true, true);
-            object[] GetThreadDesktopArgs = { ThreadID };
-            handle = (IntPtr)InvokeItDynamically.DynGen.DynamicAPIInvoke("user32.dll", "GetThreadDesktop", typeof(GetThreadDesktop), ref GetThreadDesktopArgs, true, true);
-            GrantAccess(username, handle, DesktopRightsAllAccess);
-
         }
 
         private static void GrantAccess(string username, IntPtr handle, int accessMask)
@@ -477,14 +462,14 @@ namespace SharpImpersonation
 
         // end of stolen from
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-        delegate IntPtr GetProcessWindowStation();
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr GetProcessWindowStation();
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-        delegate IntPtr GetThreadDesktop(int dwThreadId);
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr GetThreadDesktop(int dwThreadId);
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-        delegate int GetCurrentThreadId();
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern int GetCurrentThreadId();
 
     }
 
