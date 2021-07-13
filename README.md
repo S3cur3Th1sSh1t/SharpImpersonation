@@ -14,7 +14,7 @@ A blog post for the intruduction can be found here:
 
 `SharpImpersonation.exe list`
 
-![alt text](https://raw.githubusercontent.com/S3cur3Th1sSh1t/SharpImpersonation/main/Images/List.PNG)
+![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/List.PNG?raw=true)
 
 ===========================    List only elevated processes    ===========================
 
