@@ -351,7 +351,7 @@ namespace SharpImpersonation
         {
             Console.WriteLine(" [*] Setting Permission for : " + username + "\r\n");
             IntPtr handle;
-            username = "everyone";
+            //username = "everyone";
             const int WindowStationAllAccess = 0x000f037f;
             /* P/Invoke
             handle = GetProcessWindowStation();
