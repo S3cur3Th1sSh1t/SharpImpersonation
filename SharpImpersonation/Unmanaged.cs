@@ -5,6 +5,8 @@ using System.Text;
 
 namespace SharpImpersonation
 {
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    delegate Boolean GetProcessInformation(IntPtr hProcess, _PROCESS_INFORMATION_CLASS processInformationClass, ref _PROCESS_PROTECTION_LEVEL_INFORMATION processInformation, uint processInformationSize);
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     delegate Boolean OpenProcessToken(IntPtr hProcess, UInt32 dwDesiredAccess, out IntPtr hToken);
