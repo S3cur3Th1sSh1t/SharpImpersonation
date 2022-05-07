@@ -11,7 +11,7 @@ namespace SharpImpersonation
     public class Program
     {
 
-
+        // This branch stays DInvoke so that main can be ported to Syscalls
         public static void Main(string[] args)
         {
             //User Set
