@@ -5,8 +5,7 @@ using System.Text;
 
 namespace SharpImpersonation
 {
-    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-    delegate Boolean GetProcessInformation(IntPtr hProcess, _PROCESS_INFORMATION_CLASS processInformationClass, ref _PROCESS_PROTECTION_LEVEL_INFORMATION processInformation, uint processInformationSize);
+
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     delegate Boolean OpenProcessToken(IntPtr hProcess, UInt32 dwDesiredAccess, out IntPtr hToken);
@@ -54,12 +53,6 @@ namespace SharpImpersonation
     delegate Boolean LookupPrivilegeName(String lpSystemName, IntPtr lpLuid, StringBuilder lpName, ref Int32 cchName);
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-    delegate Boolean GetTokenInformation(IntPtr TokenHandle, _TOKEN_INFORMATION_CLASS TokenInformationClass, IntPtr TokenInformation, UInt32 TokenInformationLength, out UInt32 ReturnLength);
-
-    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-    delegate Boolean GetTokenInformation2(IntPtr TokenHandle, _TOKEN_INFORMATION_CLASS TokenInformationClass, ref _TOKEN_STATISTICS TokenInformation, UInt32 TokenInformationLength, out UInt32 ReturnLength);
-
-    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     delegate Boolean PrivilegeCheck(IntPtr ClientToken, _PRIVILEGE_SET RequiredPrivileges, IntPtr pfResult);
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
@@ -67,15 +60,6 @@ namespace SharpImpersonation
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     delegate UInt32 RtlNtStatusToDosError(UInt32 Status);
-
-    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-    delegate UInt32 LsaGetLogonSessionData(IntPtr LogonId, out IntPtr ppLogonSessionData);
-
-    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-    delegate bool LookupAccountSid(String lpSystemName, IntPtr Sid, StringBuilder lpName, ref UInt32 cchName, StringBuilder ReferencedDomainName, ref UInt32 cchReferencedDomainName, out _SID_NAME_USE peUse);
-
-    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-    delegate bool LookupAccountSid2(String lpSystemName,IntPtr Sid,IntPtr lpName,ref UInt32 cchName, IntPtr ReferencedDomainName,ref UInt32 cchReferencedDomainName,out _SID_NAME_USE peUse);
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     delegate bool ConvertSidToStringSidA(IntPtr Sid, ref IntPtr StringSid);

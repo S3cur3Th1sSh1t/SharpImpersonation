@@ -12,6 +12,14 @@ namespace SharpImpersonation
     class Tokens : IDisposable
     {
 
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern Boolean GetTokenInformation(IntPtr TokenHandle, _TOKEN_INFORMATION_CLASS TokenInformationClass, IntPtr TokenInformation, UInt32 TokenInformationLength, out UInt32 ReturnLength);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern Boolean GetTokenInformation(IntPtr TokenHandle, _TOKEN_INFORMATION_CLASS TokenInformationClass, ref _TOKEN_STATISTICS TokenInformation, UInt32 TokenInformationLength, out UInt32 ReturnLength);
+
+
+
         protected IntPtr phNewToken;
         protected IntPtr hExistingToken;
         private IntPtr currentProcessToken;
@@ -518,123 +526,6 @@ namespace SharpImpersonation
             return;
         }
 
-        ////////////////////////////////////////////////////////////////////////////////
-        // Removes the tokens privileges
-        ////////////////////////////////////////////////////////////////////////////////
-        public static void DisableAndRemoveAllTokenPrivileges(ref IntPtr hToken)
-        {
-            ////////////////////////////////////////////////////////////////////////////////
-            Console.WriteLine("[*] Enumerating Token Privileges");
-            UInt32 TokenInfLength = 0;
-            object[] GetTokenInformationArgs =
-            {
-               hToken, _TOKEN_INFORMATION_CLASS.TokenPrivileges, IntPtr.Zero, 0, TokenInfLength
-            };
-
-            var success = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation), ref GetTokenInformationArgs, true, true);
-            TokenInfLength = (UInt32)GetTokenInformationArgs[4];
-
-            if (TokenInfLength < 0 || TokenInfLength > Int32.MaxValue)
-            {
-                GetWin32Error("GetTokenInformation - 1 " + TokenInfLength);
-                return;
-            }
-            Console.WriteLine("[*] GetTokenInformation - Pass 1");
-            IntPtr lpTokenInformation = Marshal.AllocHGlobal((Int32)TokenInfLength);
-
-            ////////////////////////////////////////////////////////////////////////////////
-
-            object[] GetTokenInformationArgs2 =
-{
-               hToken, _TOKEN_INFORMATION_CLASS.TokenPrivileges, lpTokenInformation, TokenInfLength, TokenInfLength
-            };
-
-            success = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation), ref GetTokenInformationArgs2, true, true);
-            TokenInfLength = (UInt32)GetTokenInformationArgs[4];
-
-
-            if (!(success))
-            {
-                GetWin32Error("GetTokenInformation - 2 " + TokenInfLength);
-                return;
-            }
-            Console.WriteLine("[*] GetTokenInformation - Pass 2");
-            _TOKEN_PRIVILEGES_ARRAY tokenPrivileges = (_TOKEN_PRIVILEGES_ARRAY)Marshal.PtrToStructure(lpTokenInformation, typeof(_TOKEN_PRIVILEGES_ARRAY));
-            Marshal.FreeHGlobal(lpTokenInformation);
-            Console.WriteLine("[+] Enumerated {0} Privileges", tokenPrivileges.PrivilegeCount);
-            Console.WriteLine();
-            Console.WriteLine("{0,-45}{1,-30}", "Privilege Name", "Enabled");
-            Console.WriteLine("{0,-45}{1,-30}", "--------------", "-------");
-            ////////////////////////////////////////////////////////////////////////////////
-            for (Int32 i = 0; i < tokenPrivileges.PrivilegeCount; i++)
-            {
-                StringBuilder lpName = new StringBuilder();
-                Int32 cchName = 0;
-                IntPtr lpLuid = Marshal.AllocHGlobal(Marshal.SizeOf(tokenPrivileges.Privileges[i]));
-                Marshal.StructureToPtr(tokenPrivileges.Privileges[i].Luid, lpLuid, true);
-
-                object[] LookupPrivilegeNameArgs =
-                {
-                    null, lpLuid, null, cchName
-                };  
-
-                success = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "LookupPrivilegeName", typeof(LookupPrivilegeName), ref LookupPrivilegeNameArgs, true, true);
-                
-                if (cchName <= 0 || cchName > Int32.MaxValue)
-                {
-                    GetWin32Error("LookupPrivilegeName Pass 1");
-                    Marshal.FreeHGlobal(lpLuid);
-                    continue;
-                }
-
-                lpName.EnsureCapacity(cchName + 1);
-
-                object[] LookupPrivilegeNameArgs2 =
-                {
-                    null, lpLuid, lpName, cchName
-                };
-
-                success = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "LookupPrivilegeName", typeof(LookupPrivilegeName), ref LookupPrivilegeNameArgs2, true, true);
-
-
-                if (!(success))
-                {
-                    GetWin32Error("LookupPrivilegeName Pass 2");
-                    Marshal.FreeHGlobal(lpLuid);
-                    continue;
-                }
-
-                _PRIVILEGE_SET privilegeSet = new _PRIVILEGE_SET
-                {
-                    PrivilegeCount = 1,
-                    Control = Token.PRIVILEGE_SET_ALL_NECESSARY,
-                    Privilege = new _LUID_AND_ATTRIBUTES[] { tokenPrivileges.Privileges[i] }
-                };
-
-                Int32 pfResult = 0;
-                object[] PrivilegeCheckArgs =
-{
-                    hToken, privilegeSet, pfResult
-                };
-
-                success = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "PrivilegeCheck", typeof(PrivilegeCheck2), ref PrivilegeCheckArgs, true, true);
-                pfResult = (int)PrivilegeCheckArgs[2];
-
-                if (!(success))
-                {
-                    GetWin32Error("PrivilegeCheck");
-                    Marshal.FreeHGlobal(lpLuid);
-                    continue;
-                }
-                if (Convert.ToBoolean(pfResult))
-                {
-                    SetTokenPrivilege(ref hToken, lpName.ToString(), Token.TokenPrivileges.SE_PRIVILEGE_NONE);
-                }
-                SetTokenPrivilege(ref hToken, lpName.ToString(), Token.TokenPrivileges.SE_PRIVILEGE_REMOVED);
-                Marshal.FreeHGlobal(lpLuid);
-            }
-            Console.WriteLine();
-        }
 
         ////////////////////////////////////////////////////////////////////////////////
         // Prints the tokens privileges
@@ -644,14 +535,7 @@ namespace SharpImpersonation
             ////////////////////////////////////////////////////////////////////////////////
             Console.WriteLine("[*] Enumerating Token Privileges");
             UInt32 TokenInfLength = 0;
-
-            object[] GetTokenInformationArgs =
-            {
-               hToken, _TOKEN_INFORMATION_CLASS.TokenPrivileges, IntPtr.Zero, 0, TokenInfLength
-            };
-
-            var success = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation), ref GetTokenInformationArgs, true, true);
-            TokenInfLength = (UInt32)GetTokenInformationArgs[4];
+            GetTokenInformation(hToken, _TOKEN_INFORMATION_CLASS.TokenPrivileges, IntPtr.Zero, 0, out TokenInfLength);
        
             if (TokenInfLength < 0 || TokenInfLength > Int32.MaxValue)
             {
@@ -668,10 +552,7 @@ namespace SharpImpersonation
                hToken, _TOKEN_INFORMATION_CLASS.TokenPrivileges, lpTokenInformation, TokenInfLength, TokenInfLength
             };
 
-            success = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation), ref GetTokenInformationArgs2, true, true);
-            TokenInfLength = (UInt32)GetTokenInformationArgs[4];
-
-            if (!(success))
+            if (!GetTokenInformation(hToken, _TOKEN_INFORMATION_CLASS.TokenPrivileges, lpTokenInformation, TokenInfLength, out TokenInfLength))
             {
                 GetWin32Error("GetTokenInformation - 2 " + TokenInfLength);
                 return;
@@ -696,7 +577,7 @@ namespace SharpImpersonation
                     null, lpLuid, null, cchName
                 };
 
-                success = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "LookupPrivilegeName", typeof(LookupPrivilegeName), ref LookupPrivilegeNameArgs, true, true);
+                var success = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "LookupPrivilegeName", typeof(LookupPrivilegeName), ref LookupPrivilegeNameArgs, true, true);
 
                 if (cchName <= 0 || cchName > Int32.MaxValue)
                 {

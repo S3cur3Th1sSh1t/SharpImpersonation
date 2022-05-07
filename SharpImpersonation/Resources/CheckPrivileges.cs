@@ -7,6 +7,13 @@ namespace SharpImpersonation
     class CheckPrivileges
     {
 
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern Boolean GetTokenInformation(IntPtr TokenHandle, _TOKEN_INFORMATION_CLASS TokenInformationClass, IntPtr TokenInformation, UInt32 TokenInformationLength, out UInt32 ReturnLength);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern Boolean GetTokenInformation(IntPtr TokenHandle, _TOKEN_INFORMATION_CLASS TokenInformationClass, ref _TOKEN_STATISTICS TokenInformation, UInt32 TokenInformationLength, out UInt32 ReturnLength);
+
+
         ////////////////////////////////////////////////////////////////////////////////
         //https://blogs.msdn.microsoft.com/cjacks/2006/10/08/how-to-determine-if-a-user-is-a-member-of-the-administrators-group-with-uac-enabled-on-windows-vista/
         ////////////////////////////////////////////////////////////////////////////////
@@ -44,14 +51,7 @@ namespace SharpImpersonation
             {
                 UInt32 returnLength = 0;
 
-                object[] GetTokenInformationArgs =
-                {
-                    hToken, informationClass, lpTokenInformation, tokenInformationLength, returnLength
-                };
-                bool result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation), ref GetTokenInformationArgs, true, true);
-                returnLength = (UInt32)GetTokenInformationArgs[4];
-
-                if (!(result))
+                if (!GetTokenInformation(hToken, informationClass, lpTokenInformation, tokenInformationLength, out returnLength))
                 {
                     Tokens.GetWin32Error("GetTokenInformation");
                     return false;

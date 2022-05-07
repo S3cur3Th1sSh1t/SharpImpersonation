@@ -12,11 +12,23 @@ namespace SharpImpersonation
 {
     class Enumeration
     {
-        
+
         ////////////////////////////////////////////////////////////////////////////////
         // Converts a TokenStatistics Pointer array to User Name
         ////////////////////////////////////////////////////////////////////////////////
 
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern Boolean GetTokenInformation(IntPtr TokenHandle, _TOKEN_INFORMATION_CLASS TokenInformationClass, IntPtr TokenInformation, UInt32 TokenInformationLength, out UInt32 ReturnLength);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern Boolean GetTokenInformation(IntPtr TokenHandle, _TOKEN_INFORMATION_CLASS TokenInformationClass, ref _TOKEN_STATISTICS TokenInformation, UInt32 TokenInformationLength, out UInt32 ReturnLength);
+
+
+        [DllImport("secur32.dll")]
+        public static extern UInt32 LsaGetLogonSessionData(
+            IntPtr LogonId,
+            out IntPtr ppLogonSessionData
+        );
         public static Boolean ConvertTokenStatisticsToUsername(_TOKEN_STATISTICS tokenStatistics, ref String userName)
         {
             IntPtr lpLuid = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(_LUID)));
@@ -28,20 +40,9 @@ namespace SharpImpersonation
             
             IntPtr ppLogonSessionData = new IntPtr();
 
-            object[] LsaGetLogonSessionDataArgs = {lpLuid, ppLogonSessionData};
-            UInt32 result = 1;
-
-            result = (UInt32)InvokeItDynamically.DynGen.DynamicAPIInvoke("sspicli.dll", "LsaGetLogonSessionData", typeof(LsaGetLogonSessionData), ref LsaGetLogonSessionDataArgs, true, true);
-          
-            //Console.WriteLine("LsaGetLogonSessionData result: " + result);
-            if (0 != result)
+            if (0 != LsaGetLogonSessionData(lpLuid, out ppLogonSessionData))
             {
                 return false;
-            }
-            else
-            {
-                // Only for D/Invoke
-                ppLogonSessionData = (IntPtr)LsaGetLogonSessionDataArgs[1];
             }
 
             if (IntPtr.Zero == ppLogonSessionData)
@@ -69,6 +70,25 @@ namespace SharpImpersonation
         // Converts a SID Byte array to User Name
         ////////////////////////////////////////////////////////////////////////////////
 
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern bool LookupAccountSid(
+    String lpSystemName,
+    IntPtr Sid,
+    StringBuilder lpName,
+    ref UInt32 cchName,
+    StringBuilder ReferencedDomainName,
+    ref UInt32 cchReferencedDomainName,
+    out _SID_NAME_USE peUse);
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern bool LookupAccountSid(
+            String lpSystemName,
+            IntPtr Sid,
+            IntPtr lpName,
+            ref UInt32 cchName,
+            IntPtr ReferencedDomainName,
+            ref UInt32 cchReferencedDomainName,
+            out _SID_NAME_USE peUse);
         public static Boolean ConvertSidToName(IntPtr sid, out String userName)
         {
             StringBuilder sbUserName = new StringBuilder();
@@ -77,26 +97,13 @@ namespace SharpImpersonation
             StringBuilder lpReferencedDomainName = new StringBuilder();
             UInt32 cchReferencedDomainName = (UInt32)lpReferencedDomainName.Capacity;
             _SID_NAME_USE sidNameUse = new _SID_NAME_USE();
-            object[] LookupAccountSidArgs =
-            {
-                    String.Empty, sid, lpName, cchName, lpReferencedDomainName, cchReferencedDomainName, sidNameUse
-            };
 
-            //LookupAccountSid(String.Empty, sid, lpName, ref cchName, lpReferencedDomainName, ref cchReferencedDomainName, out sidNameUse);
-            InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "LookupAccountSidA", typeof(LookupAccountSid), ref LookupAccountSidArgs, true, true);
-            sidNameUse = (_SID_NAME_USE)LookupAccountSidArgs[6];
-
+            LookupAccountSid(String.Empty, sid, lpName, ref cchName, lpReferencedDomainName, ref cchReferencedDomainName, out sidNameUse);
 
             lpName.EnsureCapacity((Int32)cchName + 1);
             lpReferencedDomainName.EnsureCapacity((Int32)cchReferencedDomainName + 1);
 
-            object[] LookupAccountSidArgs2 =
-            {
-                    String.Empty, sid, lpName, cchName, lpReferencedDomainName, cchReferencedDomainName, sidNameUse
-            };
-            //LookupAccountSid(String.Empty, sid, lpName, ref cchName, lpReferencedDomainName, ref cchReferencedDomainName, out sidNameUse);
-            InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "LookupAccountSidA", typeof(LookupAccountSid), ref LookupAccountSidArgs2, true, true);
-            sidNameUse = (_SID_NAME_USE)LookupAccountSidArgs2[6];
+            LookupAccountSid(String.Empty, sid, lpName, ref cchName, lpReferencedDomainName, ref cchReferencedDomainName, out sidNameUse);
 
             if (lpReferencedDomainName.Length > 0)
             {
@@ -191,7 +198,10 @@ namespace SharpImpersonation
                 {
                     Console.WriteLine("[-] OpenProcessToken failed");
                     continue;
-                }                
+                }
+
+                object[] CloseHandleArgs = { hProcess };
+                InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "CloseHandle", typeof(CloseHandle), ref CloseHandleArgs, true, true);
 
                 if (findElevation)
                 {
@@ -209,27 +219,9 @@ namespace SharpImpersonation
                     continue;
                 }
 
-                uint newLength = 0;
-                object[] GetTokenInformationArgs =
+                if (!GetTokenInformation(hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, ref tokenStatistics, dwLength, out dwLength))
                 {
-                    hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, tokenStatistics, dwLength, newLength
-                };
-                bool result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation2), ref GetTokenInformationArgs, true, true);
-                dwLength = (UInt32)GetTokenInformationArgs[4];
-                tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs[2];
-                
-                if (!result)
-                {
-                    object[] GetTokenInformationArgs2 =
-                    {
-                        hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, tokenStatistics, dwLength, newLength
-                    };
-                    dwLength = (UInt32)GetTokenInformationArgs2[4];
-                    tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs2[2];
-                    result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation2), ref GetTokenInformationArgs2, true, true);
-                    dwLength = (UInt32)GetTokenInformationArgs2[4];
-                    tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs2[2];
-                    if (!result)
+                    if (!GetTokenInformation(hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, ref tokenStatistics, dwLength, out dwLength))
                     {
                         Console.WriteLine("GetTokenInformation: {0}", Marshal.GetLastWin32Error());
                         continue;
@@ -248,54 +240,8 @@ namespace SharpImpersonation
 
                 if (!users.ContainsKey(userName))
                 {
-                    ////////////////////////////////////////////////////////////////////////////////
-                    // Finds a process with the SYSTEM token that is NOT protected (0xFFFFFFFE)
-                    // https://bit.ly/37ITNWi
-                    // (bitly link for Process Protection entry at docs.microsoft.com)
-                    ////////////////////////////////////////////////////////////////////////////////
-
-                    if (userName == "NT AUTHORITY\\SYSTEM")
-                    {
-                        /* Allocate memory for a new PS_PROTECTION */
-                        _PROCESS_PROTECTION_LEVEL_INFORMATION psProtection = new _PROCESS_PROTECTION_LEVEL_INFORMATION();
-                        IntPtr outLong = Marshal.AllocHGlobal(sizeof(long));
-
-                        /* Prepare the Args for GetProcessInformation */
-                        object[] ProtectionInformationArgs =
-                        {
-                            hProcess, _PROCESS_INFORMATION_CLASS.ProcessProtectionLevelInfo, psProtection, (uint)Marshal.SizeOf(typeof(_PROCESS_PROTECTION_LEVEL_INFORMATION))
-                        };
-
-                        /* Call GetProcessInformation and output Process Protection Level Info */
-                        result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "GetProcessInformation", typeof(GetProcessInformation), ref ProtectionInformationArgs, true, true);
-
-                        if (!result)
-                        {
-                            Console.WriteLine("GetProcessInformation: {0}", Marshal.GetLastWin32Error());
-                            continue;
-                        }
-
-                        /* Ensure that the Process Protection Level is casted and saved to 'psProtection' */
-                        psProtection = (_PROCESS_PROTECTION_LEVEL_INFORMATION)ProtectionInformationArgs[2];
-
-                        /* String Format protHex and IF 'PROTECTION_LEVEL_NONE' (0xFFFFFFFE), then add to 'users' dictionary */
-                        string protHex = psProtection.ProtectionLevel.ToString("x8");
-                        protHex = protHex.ToUpper();
-                        // Console.WriteLine(string.Format("[+] Protection for PID {0} is 0x{1}", (UInt32)p.Id, protHex));
-
-                        if (protHex == "FFFFFFFE")
-                        {
-                            users.Add(userName, (UInt32)p.Id);
-                        }
-                    }
-                    else
-                    {
-                        users.Add(userName, (UInt32)p.Id);
-                    }
+                    users.Add(userName, (UInt32)p.Id);
                 }
-
-                object[] CloseHandleArgs = { hProcess };
-                InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "CloseHandle", typeof(CloseHandle), ref CloseHandleArgs, true, true);
             }
             return users;
         }
@@ -341,6 +287,7 @@ namespace SharpImpersonation
         // Find processes for a user via Tokens
         ////////////////////////////////////////////////////////////////////////////////
 
+
         public static Dictionary<UInt32, String> EnumerateUserProcesses(Boolean findElevation, String userAccount)
         {
             Dictionary<UInt32, String> users = new Dictionary<UInt32, String>();
@@ -380,26 +327,11 @@ namespace SharpImpersonation
                 _TOKEN_STATISTICS tokenStatistics = new _TOKEN_STATISTICS();
 
                 uint newLength = 0;
-                object[] GetTokenInformationArgs =
-                {
-                    hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, tokenStatistics, dwLength, newLength
-                };
-                bool result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation2), ref GetTokenInformationArgs, true, true);
-                dwLength = (UInt32)GetTokenInformationArgs[4];
-                tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs[2];
+
                 //Console.WriteLine(result);
-                if (!result)
+                if (!GetTokenInformation(hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, ref tokenStatistics, dwLength, out dwLength))
                 {
-                    object[] GetTokenInformationArgs2 =
-                    {
-                        hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, tokenStatistics, dwLength, newLength
-                    };
-                    dwLength = (UInt32)GetTokenInformationArgs2[4];
-                    tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs2[2];
-                    result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation2), ref GetTokenInformationArgs2, true, true);
-                    dwLength = (UInt32)GetTokenInformationArgs2[4];
-                    tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs2[2];
-                    if (!result)
+                    if (!GetTokenInformation(hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, ref tokenStatistics, dwLength, out dwLength))
                     {
                         Console.WriteLine("GetTokenInformation: {0}", Marshal.GetLastWin32Error());
                         continue;

@@ -510,11 +510,6 @@ namespace SharpImpersonation
         public _LUID ModifiedId;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    public struct _PROCESS_PROTECTION_LEVEL_INFORMATION
-    {
-        public DWORD ProtectionLevel;
-    }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct _PRIVILEGE_SET
@@ -569,22 +564,6 @@ namespace SharpImpersonation
         TokenSecurityAttributes,
         TokenIsRestricted,
         MaxTokenInfoClass
-    }
-
-    [Flags]
-    public enum _PROCESS_INFORMATION_CLASS
-    {
-        ProcessMemoryPriority,
-        ProcessMemoryExhaustionInfo,
-        ProcessAppMemoryInfo,
-        ProcessInPrivateInfo,
-        ProcessPowerThrottling,
-        ProcessReservedValue1,
-        ProcessTelemetryCoverageInfo,
-        ProcessProtectionLevelInfo,
-        ProcessLeapSecondInfo,
-        ProcessMachineTypeInfo,
-        ProcessInformationClassMax
     }
 
     [StructLayout(LayoutKind.Sequential)]
