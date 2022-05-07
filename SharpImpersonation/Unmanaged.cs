@@ -5,6 +5,20 @@ using System.Text;
 
 namespace SharpImpersonation
 {
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    public delegate InvokeItDynamically.Native.NTSTATUS NtOpenProcessToken(
+        IntPtr ProcessHandle,
+        UInt32 dwDesiredAccess,
+        out IntPtr TokenHandle);
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    public delegate InvokeItDynamically.Native.NTSTATUS NtClose(
+        IntPtr ProcessHandle);
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    public delegate uint NtQueryInformationToken([In] IntPtr TokenHandle, [In] uint TokenInformationClass, [In] IntPtr TokenInformation, [In] int TokenInformationLength, [Out][Optional] out int ReturnLength);
+
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     delegate Boolean GetProcessInformation(IntPtr hProcess, _PROCESS_INFORMATION_CLASS processInformationClass, ref _PROCESS_PROTECTION_LEVEL_INFORMATION processInformation, uint processInformationSize);
 
