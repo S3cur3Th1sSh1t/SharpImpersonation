@@ -254,9 +254,6 @@ namespace SharpImpersonation
                         t.ImpersonateUser(ProcessID);
                         break;
 
-                    case "SetThreadToken":
-                        t.SetThreadToken(ProcessID);
-                        break;
                 }
                 return;
             }
@@ -339,10 +336,8 @@ namespace SharpImpersonation
             Console.WriteLine("\r\nSharpImpersonation.exe user:<user> shellcode:<base64shellcode>");
             Console.WriteLine("\r\n======================  Impersonate process with the PID <ID> and start a <binary>  ======================");
             Console.WriteLine("\r\nSharpImpersonation.exe pid:<ID> binary:<binary-Path>");
-            Console.WriteLine("\r\n======================  Impersonate user <user> via ImpersonateLoggedOnuser for the current session  ======================");
+            Console.WriteLine("\r\n======================  Impersonate user <user> to use this token for the current process (NtSetInformationThread)  ======================");
             Console.WriteLine("\r\nSharpImpersonation.exe user:<user> technique:ImpersonateLoggedOnuser");
-            Console.WriteLine("\r\n======================  Impersonate user <user> via SetThreadToken for the current session  ======================");
-            Console.WriteLine("\r\nSharpImpersonation.exe user:<user> technique:SetThreadToken");
             return;
         }
 

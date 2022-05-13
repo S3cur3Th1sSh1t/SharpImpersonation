@@ -101,7 +101,6 @@ namespace SharpImpersonation
                 }
             }
             
-            PROCESS_INFORMATION pInfo = new PROCESS_INFORMATION();
             STARTUPINFO sInfo = new STARTUPINFO();
 
             sInfo.cb = Marshal.SizeOf(sInfo);
@@ -114,7 +113,7 @@ namespace SharpImpersonation
             _PROCESS_INFORMATION processInformation = new _PROCESS_INFORMATION();
             
             Console.WriteLine("Starting " + name + " with arguments " + arguments);
-            Console.WriteLine("Directory: " + Environment.CurrentDirectory);
+            //Console.WriteLine("Directory: " + Environment.CurrentDirectory);
             
 
             // Error binary path not found
