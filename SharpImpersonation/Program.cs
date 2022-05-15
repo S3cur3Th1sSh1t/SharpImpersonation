@@ -147,7 +147,7 @@ namespace SharpImpersonation
                 bool userfound = false;
                 foreach (String name in ProcByUser.Keys)
                 {
-                    if (name == username)
+                    if (name.ToUpper() == username.ToUpper())
                     {
                         userfound = true;
                         Console.WriteLine("\r\n[+] Found process for user " + username + " with PID: " + (int)ProcByUser[name] + "\r\n");
