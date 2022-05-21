@@ -33,7 +33,7 @@ namespace SharpImpersonation
 
             bool listProcs = false;
 
-            bool wmilist = false;
+            bool wmi = false;
 
             try
             {
@@ -91,7 +91,7 @@ namespace SharpImpersonation
 
                 if (arguments.Arguments.ContainsKey("wmi"))
                 {
-                    wmilist = true;
+                    wmi = true;
                 }
 
                 if (arguments.Arguments.ContainsKey("user"))
@@ -121,7 +121,7 @@ namespace SharpImpersonation
             banner();
             if (listProcs)
             {
-                if (wmilist)
+                if (wmi)
                 {
                     ListUsersWMI();
                     return;
@@ -143,7 +143,15 @@ namespace SharpImpersonation
                 //CheckArgs();
                 Console.WriteLine("\r\n[*] Username given, checking processes");
                 Dictionary<String, UInt32> ProcByUser = new Dictionary<String, UInt32>();
-                ProcByUser = Enumeration.EnumerateTokens(false);
+                if (wmi)
+                {
+                    Console.WriteLine("\r\n[*] Using WMI to check processes");
+                    ProcByUser = Enumeration.EnumerateTokensWMI();
+                }
+                else
+                {
+                    ProcByUser = Enumeration.EnumerateTokens(false);
+                }
                 bool userfound = false;
                 foreach (String name in ProcByUser.Keys)
                 {
@@ -159,7 +167,7 @@ namespace SharpImpersonation
                         }
                         else
                         {
-                            ImpersonateByTechnique(ProcId, binary, name);
+                            ImpersonateByTechnique(ProcId, binary, name, wmi);
                         }
                     }
                 }
@@ -201,7 +209,7 @@ namespace SharpImpersonation
                         Environment.Exit(0);
                     }
 
-                    ImpersonateByTechnique(procId, binary, uname);
+                    ImpersonateByTechnique(procId, binary, uname, wmi);
                 }
             }
 
@@ -237,7 +245,7 @@ namespace SharpImpersonation
                 return;
             }
 
-            void ImpersonateByTechnique(int ProcessID, string bin, string uname)
+            void ImpersonateByTechnique(int ProcessID, string bin, string uname, bool wmienum)
             {
                 Tokens t = new Tokens();
 
